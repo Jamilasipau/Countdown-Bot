@@ -22,6 +22,7 @@ IST = pytz.timezone("Asia/Kolkata")
 # Global flag to indicate bot status
 bot_status = {"active": True}
 
+# Flask app for keep-alive
 app = Flask('')
 
 @app.route('/')
@@ -32,9 +33,8 @@ def run_http_server():
     app.run(host='0.0.0.0', port=8080)
 
 def keep_alive():
-    t = Thread(target=run_http_server)
+    t = threading.Thread(target=run_http_server)
     t.start()
-
 
 def calculate_days_remaining():
     """Calculates the days remaining to the target date."""
@@ -42,14 +42,12 @@ def calculate_days_remaining():
     days_remaining = (TARGET_DATE - today).days
     return days_remaining
 
-
 def wait_until_midnight():
-    """Waits until 12 AM IST."""
+    """Waits until the next midnight IST."""
     now = datetime.datetime.now(IST)
     next_midnight = (now + datetime.timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-    wait_seconds = (next_midnight - now).total_seconds()
+    wait_seconds = max(0, (next_midnight - now).total_seconds())
     time.sleep(wait_seconds)
-
 
 def send_daily_message():
     """Sends the countdown message daily at 12 AM IST."""
@@ -78,7 +76,6 @@ def send_daily_message():
             bot.send_message(USER_ID, error_message)
             time.sleep(60)  # Retry after 60 seconds
 
-
 @bot.message_handler(commands=["status"])
 def handle_status(message):
     """Responds to /status command."""
@@ -86,13 +83,17 @@ def handle_status(message):
         status_message = "Bot is active and running." if bot_status["active"] else "Bot is inactive."
         bot.send_message(USER_ID, status_message)
 
-
 if __name__ == "__main__":
+    # Start the daily message thread
+    threading.Thread(target=send_daily_message, daemon=True).start()
+    
+    # Keep the HTTP server alive
     keep_alive()
     
+    # Run the bot polling loop with error handling
     while True:
         try:
             bot.polling(none_stop=True)
         except Exception as e:
-            print(f"Error occurred: {str(e)}")
-            time.sleep(5)
+            print(f"Error occurred in polling: {str(e)}")
+            time.sleep(5)  # Retry after a brief pause
