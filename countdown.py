@@ -3,6 +3,7 @@ import datetime
 import time
 import pytz
 import threading
+from flask import Flask
 
 # Replace with your Telegram bot token
 BOT_TOKEN = "8107848491:AAFs-HAHYsCLlKGlWGMu-C7G1cCTkXrT3jo"
@@ -20,6 +21,19 @@ IST = pytz.timezone("Asia/Kolkata")
 
 # Global flag to indicate bot status
 bot_status = {"active": True}
+
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "I am alive"
+
+def run_http_server():
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = Thread(target=run_http_server)
+    t.start()
 
 
 def calculate_days_remaining():
@@ -73,21 +87,12 @@ def handle_status(message):
         bot.send_message(USER_ID, status_message)
 
 
-def run_bot():
-    """Runs the bot in a separate thread."""
-    bot.polling(non_stop=True)
-
-
 if __name__ == "__main__":
-    # Start the bot in a separate thread
-    bot_thread = threading.Thread(target=run_bot)
-    bot_thread.daemon = True
-    bot_thread.start()
-
-    # Start the daily message loop
-    try:
-        send_daily_message()
-    except KeyboardInterrupt:
-        bot_status["active"] = False
-        print("Bot stopped.")
-        
+    keep_alive()
+    
+    while True:
+        try:
+            bot.polling(none_stop=True)
+        except Exception as e:
+            print(f"Error occurred: {str(e)}")
+            time.sleep(5)
